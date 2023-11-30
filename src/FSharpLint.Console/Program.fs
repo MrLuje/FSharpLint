@@ -5,6 +5,8 @@ open System
 open FSharpLint.Framework
 open FSharpLint.Application
 open System.Reflection
+open Daemon
+open System.IO
 
 /// Output format the linter will use.
 type private OutputFormat =
@@ -22,6 +24,7 @@ type private FileType =
 // fsharplint:disable UnionCasesNames
 type private ToolArgs =
     | [<AltCommandLine("-f")>] Format of OutputFormat
+    | [<CliPrefix(CliPrefix.None)>] Daemon of ParseResults<DaemonArgs>
     | [<CliPrefix(CliPrefix.None)>] Lint of ParseResults<LintArgs>
     | Version 
 with
@@ -31,6 +34,15 @@ with
             | Format _ -> "Output format of the linter."
             | Lint _ -> "Runs FSharpLint against a file or a collection of files."
             | Version -> "Prints current version."
+            | Daemon _ -> "Daemon mode, launches an LSP-like server to can be used by editor tooling."
+
+and private DaemonArgs =
+    | Yup of pwet:string
+    with
+        interface IArgParserTemplate with
+            member this.Usage = 
+                match this with
+                | Yup _ -> "Yup"
 
 // TODO: investigate erroneous warning on this type definition
 // fsharplint:disable UnionDefinitionIndentation
@@ -135,6 +147,15 @@ let private start (arguments:ParseResults<ToolArgs>) (toolsPath:Ionide.ProjInfo.
             let target = if fileType = FileType.Source then "source" else target
             sprintf "Lint failed while analysing %s.\nFailed with: %s\nStack trace: %s" target e.Message e.StackTrace
             |> handleError
+    | Daemon _ ->
+        // output.WriteInfo "Starting daemon..."
+        let daemon =
+            new FSharpLintDaemon(Console.OpenStandardOutput(), Console.OpenStandardInput())
+
+        AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> (daemon :> IDisposable).Dispose())
+
+        daemon.WaitForClose.GetAwaiter().GetResult()
+        exit 0
     | _ -> ()
 
     exitCode

@@ -15,7 +15,11 @@ nuget nunit
 nuget NUnit3TestAdapter
 nuget Microsoft.NET.Test.Sdk
 nuget Newtonsoft.Json
+nuget Thoth.Json.Net ~> 8.0.0
 nuget Microsoft.Build.Locator
+nuget SemanticVersioning 2.0.2
+nuget StreamJsonRpc >= 2.8.28
+nuget System.IO.Abstractions 17.2.3
 
 # don't expose as a package reference
 nuget Microsoft.SourceLink.GitHub copy_local: true

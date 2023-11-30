@@ -2,7 +2,11 @@
 
 open System
 open System.IO
+open System.Threading
 open NUnit.Framework
+open FSharpLint.Client.LSPFSharpLintService
+open FSharpLint.Client.Contracts
+open FSharpLint.Client.LSPFSharpLintServiceTypes
 
 let getErrorsFromOutput (output:string) =
     let splitOutput = output.Split([|Environment.NewLine|], StringSplitOptions.None)
@@ -95,3 +99,16 @@ type TestConsoleApplication() =
         
         Assert.AreEqual(0, returnCode)
         Assert.AreEqual(Set.empty, errors)
+        
+    [<Test>]
+    member __.``Get version from Daemon mode``() =
+        use input = new TemporaryFile(String.Empty, "fs")
+        let fsharpLintService: FSharpLintService = new LSPFSharpLintService() :> FSharpLintService
+        let versionResponse = 
+            async {
+                let! version = fsharpLintService.VersionAsync(input.FileName, CancellationToken.None) |> Async.AwaitTask
+                return version
+            }
+            |> Async.RunSynchronously
+        
+        Assert.AreEqual(LanguagePrimitives.EnumToValue FSharpLintResponseCode.Version, versionResponse.Code)
