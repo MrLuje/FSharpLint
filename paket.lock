@@ -26,7 +26,6 @@ NUGET
       BenchmarkDotNet (>= 0.13)
       Microsoft.Diagnostics.Tracing.TraceEvent (>= 2.0.61)
     CommandLineParser (2.8)
-    Fable.Core (3.7.1)
     FParsec (1.1.1)
       FSharp.Core (>= 4.3.4)
     FSharp.Compiler.Service (40.0)
@@ -216,7 +215,7 @@ NUGET
       System.Runtime.CompilerServices.Unsafe (>= 6.0)
     NETStandard.Library (2.0.3)
       Microsoft.NETCore.Platforms (>= 1.1)
-    Newtonsoft.Json (13.0.1)
+    Newtonsoft.Json (13.0.3)
     NuGet.Frameworks (6.7) - restriction: || (== net6.0) (&& (== netstandard2.0) (>= netcoreapp3.1))
     NUnit (3.13.2)
       NETStandard.Library (>= 2.0)
@@ -299,7 +298,8 @@ NUGET
       System.Runtime.Extensions (>= 4.3)
       System.Threading (>= 4.3)
       System.Threading.Tasks (>= 4.3)
-    System.Collections.Immutable (5.0) - copy_local: false
+    System.Collections.Immutable (5.0)
+      System.Memory (>= 4.5.4) - restriction: || (&& (== net6.0) (>= net461)) (&& (== net6.0) (< netcoreapp2.1)) (&& (== net6.0) (< netstandard2.0)) (&& (== net6.0) (>= uap10.1)) (== netstandard2.0)
     System.Configuration.ConfigurationManager (5.0) - copy_local: false
       System.Security.Cryptography.ProtectedData (>= 5.0)
       System.Security.Permissions (>= 5.0)
@@ -733,10 +733,6 @@ NUGET
     System.ValueTuple (4.5)
     System.Windows.Extensions (5.0) - copy_local: false, restriction: || (== net6.0) (&& (== netstandard2.0) (>= netcoreapp3.0))
       System.Drawing.Common (>= 5.0) - restriction: || (== net6.0) (&& (== netstandard2.0) (>= netcoreapp3.0))
-    Thoth.Json.Net (8.0)
-      Fable.Core (>= 3.0 < 4.0)
-      FSharp.Core (>= 4.7.2)
-      Newtonsoft.Json (>= 11.0.2)
 
 GROUP Build
 STORAGE: NONE

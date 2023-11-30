@@ -7,7 +7,6 @@ open System.IO.Abstractions
 open System.Threading
 open System.Threading.Tasks
 open StreamJsonRpc
-open Thoth.Json.Net
 open FSharpLint.Client.Contracts
 open FSharpLint.Core.Version
 open FSharp.Core

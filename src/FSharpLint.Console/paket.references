@@ -4,4 +4,3 @@ FSharp.Core
 Microsoft.SourceLink.GitHub
 StreamJsonRpc
 System.IO.Abstractions
-Thoth.Json.Net

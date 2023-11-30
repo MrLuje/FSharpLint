@@ -9,7 +9,6 @@ open FSharp.Compiler.Text
 open FSharpLint.Framework
 open System.IO
 open FSharpLint.Application.Lint
-open Thoth.Json.Net
 open Newtonsoft.Json
 open Newtonsoft.Json
 open System
