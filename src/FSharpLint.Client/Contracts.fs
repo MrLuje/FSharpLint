@@ -128,13 +128,12 @@ type LintWarningC = {
     Details:WarningDetailsC
 }
 
-type FSharpLintResponse =
-    {
-        Code: int
-        FilePath: string
-        Content: string option
-        Result: LintWarningC list
-    }
+type FSharpLintResponse = { 
+    Code: int
+    FilePath: string
+    Content: string option
+    Result: LintWarningC list 
+}
 
 type FSharpLintService =
     interface
@@ -143,15 +142,4 @@ type FSharpLintService =
         abstract member VersionAsync: filePath: string * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
 
         abstract member LintFileAsync: LintFileRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
-
-        // abstract member FormatDocumentAsync:
-        //     FormatDocumentRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
-
-        // abstract member FormatSelectionAsync:
-        //     FormatSelectionRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
-
-        // abstract member ConfigurationAsync:
-        //     filePath: string * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
-
-        // abstract member ClearCache: unit -> unit
     end

@@ -223,7 +223,7 @@ let private daemonNotFoundResponse filePath (error: GetDaemonError) : Task<FShar
 let private cancellationWasRequestedResponse filePath : Task<FSharpLintResponse> =
     { Code = int FSharpLintResponseCode.CancellationWasRequested
       FilePath = filePath
-      Content = Some "FantomasService is being or has been disposed."
+      Content = Some "FSharpLintService is being or has been disposed."
       Result = []
     }
     |> Task.FromResult
@@ -235,102 +235,6 @@ let mapResultToResponse (filePath: string) (result: Result<Task<FSharpLintRespon
     | Error FSharpLintServiceError.FilePathIsNotAbsolute -> fileNotAbsoluteResponse filePath
     | Error(FSharpLintServiceError.DaemonNotFound e) -> daemonNotFoundResponse filePath e
     | Error FSharpLintServiceError.CancellationWasRequested -> cancellationWasRequestedResponse filePath
-
-/// <summary>
-/// <para>
-/// The Fantomas daemon currently sends a FSharpLint.Client.LSPFantomasServiceTypes.FormatDocumentResponse back to FSharpLint.Client.
-/// This was a poor choice as the serialization of a DU case breaks when you add a new field to it. Even though that field is optional.
-/// To overcome this, we deserialize the FormatDocumentResponse ourselves to construct the matching FantomasResponse.
-/// </para>
-/// <para>
-/// In v6.0 we introduced an additional option field to FormatDocumentResponse.Formatted being the cursor position.
-/// That is why we currently have two match cases that try to deserialize "Formatted".
-/// </para>
-/// </summary>
-/// <param name="inputFilePath">When serialization fails, we re-use the input file path from the request information.</param>
-/// <param name="json">The raw JObject that send sent over the wire.</param>
-// let decodeFormatResult (inputFilePath: string) (json: JObject) : FSharpLintResponse =
-//     let mkError msg =
-//         { Code = int FSharpLintResponseCode.Error
-//           FilePath = inputFilePath
-//           Content = Some msg
-//           SelectedRange = None
-//           Cursor = None }
-
-//     try
-//         if not (json.ContainsKey("Case")) || not (json.ContainsKey("Fields")) then
-//             mkError "Expected \"Case\" and \"Fields\" to be present in the response json"
-//         else
-//             let caseName = json.["Case"].Value<string>()
-//             let fields = json.["Fields"].Value<JArray>()
-
-//             match caseName with
-//             | "Formatted" when fields.Count = 2 ->
-//                 let fileName = fields.[0].Value<string>()
-//                 let formattedContent = fields.[1].Value<string>()
-
-//                 { Code = int FSharpLintResponseCode.Formatted
-//                   FilePath = fileName
-//                   Content = Some formattedContent
-//                   SelectedRange = None
-//                   Cursor = None }
-//             | "Formatted" when fields.Count = 3 ->
-//                 let fileName = fields.[0].Value<string>()
-//                 let formattedContent = fields.[1].Value<string>()
-
-//                 let cursor =
-//                     if fields.[2].Type = JTokenType.Null then
-//                         None
-//                     else
-//                         // This is wrapped as an option, the Case is "Some" here.
-//                         // We need to extract the Line and Column from the first item in Fields
-//                         let cursorObject = fields.[2].Value<JObject>()
-//                         let cursorObject = cursorObject.["Fields"].[0].Value<JObject>()
-
-//                         Some(
-//                             FormatCursorPosition(
-//                                 cursorObject.["Line"].Value<int>(),
-//                                 cursorObject.["Column"].Value<int>()
-//                             )
-//                         )
-
-//                 { Code = int FSharpLintResponseCode.Formatted
-//                   FilePath = fileName
-//                   Content = Some formattedContent
-//                   SelectedRange = None
-//                   Cursor = cursor }
-
-//             | "Unchanged" when fields.Count = 1 ->
-//                 let fileName = fields.[0].Value<string>()
-
-//                 { Code = int FSharpLintResponseCode.UnChanged
-//                   FilePath = fileName
-//                   Content = None
-//                   SelectedRange = None
-//                   Cursor = None }
-//             | "Error" when fields.Count = 2 ->
-//                 let fileName = fields.[0].Value<string>()
-//                 let formattingError = fields.[1].Value<string>()
-
-//                 { Code = int FSharpLintResponseCode.Error
-//                   FilePath = fileName
-//                   Content = Some formattingError
-//                   SelectedRange = None
-//                   Cursor = None }
-//             | "IgnoredFile" when fields.Count = 1 ->
-//                 let fileName = fields.[0].Value<string>()
-
-//                 { Code = int FSharpLintResponseCode.Ignored
-//                   FilePath = fileName
-//                   Content = None
-//                   SelectedRange = None
-//                   Cursor = None }
-//             | _ ->
-//                 mkError
-//                     $"Could not deserialize the message from the daemon, got unexpected case name %s{caseName} with %i{fields.Count} fields."
-
-//     with ex ->
-//         mkError $"Could not deserialize the message from the daemon, %s{ex.Message}"
 
 type LSPFSharpLintService() =
     let cts = new CancellationTokenSource()
@@ -376,60 +280,3 @@ type LSPFSharpLintService() =
                           FilePath = lintFileRequest.FilePath
                           Result = t.Result })) //TODO: WIP
             |> mapResultToResponse lintFileRequest.FilePath
-
-        // member _.FormatDocumentAsync
-        //     (
-        //         formatDocumentOptions: FormatDocumentRequest,
-        //         ?cancellationToken: CancellationToken
-        //     ) : Task<FSharpLintResponse> =
-        //     isCancellationRequested cts.IsCancellationRequested
-        //     |> Result.bind (getFolderFor formatDocumentOptions.FilePath)
-        //     |> Result.bind (getDaemon agent)
-        //     |> Result.map (fun client ->
-        //         client
-        //             .InvokeWithParameterObjectAsync<JObject>(
-        //                 Methods.FormatDocument,
-        //                 argument = formatDocumentOptions,
-        //                 cancellationToken = Option.defaultValue cts.Token cancellationToken
-        //             )
-        //             .ContinueWith(fun (t: Task<JObject>) -> decodeFormatResult formatDocumentOptions.FilePath t.Result))
-        //     |> mapResultToResponse formatDocumentOptions.FilePath
-
-        // member _.FormatSelectionAsync
-        //     (
-        //         formatSelectionRequest: FormatSelectionRequest,
-        //         ?cancellationToken: CancellationToken
-        //     ) =
-        //     isCancellationRequested cts.IsCancellationRequested
-        //     |> Result.bind (getFolderFor formatSelectionRequest.FilePath)
-        //     |> Result.bind (getDaemon agent)
-        //     |> Result.map (fun client ->
-        //         client
-        //             .InvokeWithParameterObjectAsync<FormatSelectionResponse>(
-        //                 Methods.FormatSelection,
-        //                 argument = formatSelectionRequest,
-        //                 cancellationToken = Option.defaultValue cts.Token cancellationToken
-        //             )
-        //             .ContinueWith(fun (t: Task<FormatSelectionResponse>) -> t.Result.AsFormatResponse()))
-        //     |> mapResultToResponse formatSelectionRequest.FilePath
-
-        // member _.ConfigurationAsync(filePath, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
-        //     isCancellationRequested cts.IsCancellationRequested
-        //     |> Result.bind (getFolderFor filePath)
-        //     |> Result.bind (getDaemon agent)
-        //     |> Result.map (fun client ->
-        //         client
-        //             .InvokeWithCancellationAsync<string>(
-        //                 Methods.Configuration,
-        //                 cancellationToken = Option.defaultValue cts.Token cancellationToken
-        //             )
-        //             .ContinueWith(fun (t: Task<string>) ->
-
-        //                 { Code = int FSharpLintResponseCode.Configuration
-        //                   FilePath = filePath
-        //                   Content = Some t.Result
-        //                   SelectedRange = None
-        //                   Cursor = None }))
-        //     |> mapResultToResponse filePath
-
-        // member _.ClearCache() = agent.PostAndReply Reset

@@ -16,69 +16,12 @@ module Methods =
     [<Literal>]
     val LintFile: string = "fsharplint/lintfile"
 
-    // [<Literal>]
-    // val FormatSelection: string = "fantomas/formatSelection"
-
-    // [<Literal>]
-    // val Configuration: string = "fantomas/configuration"
-
 type LintFileRequest =
     {
         // OptionalLintParameters: OptionalLintParameters
         FilePath: string
         ParsedFileInfo: ParsedFileInformation option
     }
-
-// type FormatDocumentRequest =
-//     {
-//         SourceCode: string
-
-//         /// File path will be used to identify the .editorconfig options
-//         /// Unless the configuration is passed
-//         FilePath: string
-
-//         /// Overrides the found .editorconfig.
-//         Config: IReadOnlyDictionary<string, string> option
-
-//         /// The current position of the cursor.
-//         /// Zero-based
-//         Cursor: FormatCursorPosition option
-//     }
-
-//     member IsSignatureFile: bool
-
-// and FormatCursorPosition =
-//     class
-//         new: line: int * column: int -> FormatCursorPosition
-//         val Line: int
-//         val Column: int
-//     end
-
-// type FormatSelectionRequest =
-//     {
-//         SourceCode: string
-
-//         /// File path will be used to identify the .editorconfig options
-//         /// Unless the configuration is passed
-//         FilePath: string
-
-//         /// Overrides the found .editorconfig.
-//         Config: IReadOnlyDictionary<string, string> option
-
-//         /// Range follows the same semantics of the FSharp Compiler Range type.
-//         Range: FormatSelectionRange
-//     }
-
-//     member IsSignatureFile: bool
-
-// and FormatSelectionRange =
-//     class
-//         new: startLine: int * startColumn: int * endLine: int * endColumn: int -> FormatSelectionRange
-//         val StartLine: int
-//         val StartColumn: int
-//         val EndLine: int
-//         val EndColumn: int
-//     end
 
 type SelectionRange =
     class
@@ -141,16 +84,6 @@ type FSharpLintResponse =
 
 type FSharpLintService =
     inherit System.IDisposable
-
-    // abstract ClearCache: unit -> unit
-
-    // abstract ConfigurationAsync: filePath: string * ?cancellationToken: CancellationToken -> Task<FantomasResponse>
-
-    // abstract FormatDocumentAsync:
-    //     FormatDocumentRequest * ?cancellationToken: CancellationToken -> System.Threading.Tasks.Task<FantomasResponse>
-
-    // abstract FormatSelectionAsync:
-    //     FormatSelectionRequest * ?cancellationToken: CancellationToken -> System.Threading.Tasks.Task<FantomasResponse>
 
     abstract VersionAsync:
         filePath: string * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>

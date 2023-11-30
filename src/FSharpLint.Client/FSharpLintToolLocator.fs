@@ -142,8 +142,8 @@ let private fsharpLintVersionOnPath () : (FSharpLintExecutableFile * FSharpLintV
         |> Seq.tryHead
 
     fsharpLintExecutableOnPathOpt
-    |> Option.bind (fun fantomasExecutablePath ->
-        let processStart = ProcessStartInfo(fantomasExecutablePath)
+    |> Option.bind (fun fsharpLintExecutablePath ->
+        let processStart = ProcessStartInfo(fsharpLintExecutablePath)
         processStart.Arguments <- "--help"
         processStart.RedirectStandardOutput <- true
         processStart.CreateNoWindow <- true
@@ -161,7 +161,7 @@ let private fsharpLintVersionOnPath () : (FSharpLintExecutableFile * FSharpLintV
             |> Option.bind (fun s ->
                 let hasDaemon = s.ToLowerInvariant().Contains("daemon mode")
                 if hasDaemon then
-                    Some (FSharpLintExecutableFile(fantomasExecutablePath), FSharpLintVersion("1.0.0"))
+                    Some (FSharpLintExecutableFile(fsharpLintExecutablePath), FSharpLintVersion("1.0.0"))
                 else 
                     None)
         | Error(ProcessStartError.ExecutableFileNotFound _)
@@ -209,11 +209,11 @@ let createFor (startInfo: FSharpLintToolStartInfo) : Result<RunningFSharpLintToo
         | FSharpLintToolStartInfo.GlobalTool ->
             let userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
 
-            let fantomasExecutable =
+            let fsharpLintExecutable =
                 let fileName = if isWindows then $"{fsharpLintToolName}.exe" else fsharpLintToolName
                 Path.Combine(userProfile, ".dotnet", "tools", fileName)
 
-            let ps = ProcessStartInfo(fantomasExecutable)
+            let ps = ProcessStartInfo(fsharpLintExecutable)
             ps.Arguments <- "daemon"
             ps
         | FSharpLintToolStartInfo.ToolOnPath(FSharpLintExecutableFile executableFile) ->
