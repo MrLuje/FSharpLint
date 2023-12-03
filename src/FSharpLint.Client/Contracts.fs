@@ -4,6 +4,7 @@ open System
 open System.Threading
 open System.Threading.Tasks
 open System
+open System
 
 [<RequireQualifiedAccess>]
 module Methods =
@@ -13,9 +14,16 @@ module Methods =
     [<Literal>]
     let LintFile = "fsharplint/lintfile"
 
+type VersionRequest =
+    {
+        FilePath: string
+        ProjectPath: string option
+    }
+
 type LintFileRequest =
     {
         FilePath: string
+        ProjectPath: string option
         LintConfigPath: string option
     }
 
@@ -88,7 +96,7 @@ type FSharpLintService =
     interface
         inherit IDisposable
 
-        abstract member VersionAsync: filePath: string * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
+        abstract member VersionAsync: VersionRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
 
         abstract member LintFileAsync: LintFileRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
     end

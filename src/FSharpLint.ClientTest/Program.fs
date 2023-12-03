@@ -37,7 +37,7 @@ async {
             Thread.Sleep ((TimeSpan.FromSeconds 1).Milliseconds)
         Console.WriteLine("Attached !!")
 
-    let! version = fsharpLintService.VersionAsync(testFile, CancellationToken.None) |> Async.AwaitTask
+    let! version = fsharpLintService.VersionAsync({ FilePath = testFile; ProjectPath = None }, CancellationToken.None) |> Async.AwaitTask
     // let version = {| Code = 5 |}
     Debug.Assert(version.Code = (int)FSharpLint.Client.LSPFSharpLintServiceTypes.FSharpLintResponseCode.Version)
 
@@ -76,6 +76,7 @@ async {
 
     let r = (fsharpLintService.LintFileAsync({
         FilePath = testFile
+        ProjectPath = None
         LintConfigPath = None
         // ParsedFileInfo = None
         // ParsedFileInfo = {

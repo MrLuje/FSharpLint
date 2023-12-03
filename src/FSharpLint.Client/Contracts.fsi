@@ -11,9 +11,16 @@ module Methods =
     [<Literal>]
     val LintFile: string = "fsharplint/lintfile"
 
+type VersionRequest =
+    {
+        FilePath: string
+        ProjectPath: string option
+    }
+
 type LintFileRequest =
     {
         FilePath: string
+        ProjectPath: string option
         LintConfigPath: string option
     }
 
@@ -81,7 +88,6 @@ type FSharpLintResponse = {
 type FSharpLintService =
     inherit System.IDisposable
 
-    abstract VersionAsync:
-        filePath: string * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
+    abstract VersionAsync: VersionRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>
 
     abstract LintFileAsync: LintFileRequest * ?cancellationToken: CancellationToken -> Task<FSharpLintResponse>

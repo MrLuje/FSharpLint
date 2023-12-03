@@ -146,13 +146,18 @@ let private isCancellationRequested (requested: bool) : Result<unit, FSharpLintS
     else
         Ok()
 
-let private getFolderFor (filePath: string) () : Result<Folder, FSharpLintServiceError> =
-    if not (isPathAbsolute filePath) then
-        Error FSharpLintServiceError.FilePathIsNotAbsolute
-    elif not (File.Exists filePath) then
-        Error FSharpLintServiceError.FileDoesNotExist
-    else
-        Path.GetDirectoryName filePath |> Folder |> Ok
+let private getFolderFor filePath projectPath (): Result<Folder, FSharpLintServiceError> =
+    let handleFile filePath =
+        if not (isPathAbsolute filePath) then
+            Error FSharpLintServiceError.FilePathIsNotAbsolute
+        elif not (File.Exists filePath) then
+            Error FSharpLintServiceError.FileDoesNotExist
+        else
+            Path.GetDirectoryName filePath |> Folder |> Ok
+    
+    projectPath
+    |> Option.defaultValue filePath
+    |> handleFile
 
 let private getDaemon (agent: MailboxProcessor<Msg>) (folder: Folder) : Result<JsonRpc, FSharpLintServiceError> =
     let daemon = agent.PostAndReply(fun replyChannel -> GetDaemon(folder, replyChannel))
@@ -240,9 +245,9 @@ type LSPFSharpLintService() =
                 let _ = agent.PostAndReply Reset
                 cts.Cancel()
 
-        member _.VersionAsync(filePath, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
+        member _.VersionAsync(versionRequest: VersionRequest, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
             isCancellationRequested cts.IsCancellationRequested
-            |> Result.bind (getFolderFor filePath)
+            |> Result.bind (getFolderFor (versionRequest.FilePath) (versionRequest.ProjectPath))
             |> Result.bind (getDaemon agent)
             |> Result.map (fun client ->
                 client
@@ -253,12 +258,12 @@ type LSPFSharpLintService() =
                     .ContinueWith(fun (t: Task<string>) ->
                         { Code = int FSharpLintResponseCode.Version
                           Result = Content t.Result
-                          FilePath = filePath }))
-            |> mapResultToResponse filePath
+                          FilePath = versionRequest.FilePath }))
+            |> mapResultToResponse versionRequest.FilePath
 
         member _.LintFileAsync(lintFileRequest: LintFileRequest, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
             isCancellationRequested cts.IsCancellationRequested
-            |> Result.bind (getFolderFor lintFileRequest.FilePath)
+            |> Result.bind (getFolderFor (lintFileRequest.FilePath) (lintFileRequest.ProjectPath))
             |> Result.bind (getDaemon agent)
             |> Result.map (fun client ->
                 client
