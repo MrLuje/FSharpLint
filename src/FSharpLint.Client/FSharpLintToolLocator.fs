@@ -8,10 +8,9 @@ open System.Text.RegularExpressions
 open System.Runtime.InteropServices
 open StreamJsonRpc
 open FSharpLint.Client.LSPFSharpLintServiceTypes
-open StreamJsonRpc
 open Newtonsoft.Json
 
-let private supportedRange = SemanticVersioning.Range(">=v0.21.3") //TODO: correct version
+let private supportedRange = SemanticVersioning.Range(">=v0.21.3") //TODO: proper version
 
 let private (|CompatibleVersion|_|) (version: string) =
     match SemanticVersioning.Version.TryParse version with
@@ -128,7 +127,7 @@ let private isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 let private fsharpLintVersionOnPath () : (FSharpLintExecutableFile * FSharpLintVersion) option =
     let fsharpLintExecutableOnPathOpt =
         match Option.ofObj (Environment.GetEnvironmentVariable("PATH")) with
-        | Some s -> Array.concat [[|"/home/vince/src/github/mrluje/FSharpLint/src/FSharpLint.Console/bin/Debug/net6.0"|]; (s.Split([| if isWindows then ';' else ':' |], StringSplitOptions.RemoveEmptyEntries))] //TODO: TO REMOVE
+        | Some s -> s.Split([| if isWindows then ';' else ':' |], StringSplitOptions.RemoveEmptyEntries)
         | None -> Array.empty
         |> Seq.choose (fun folder ->
             if isWindows then
@@ -144,7 +143,7 @@ let private fsharpLintVersionOnPath () : (FSharpLintExecutableFile * FSharpLintV
     fsharpLintExecutableOnPathOpt
     |> Option.bind (fun fsharpLintExecutablePath ->
         let processStart = ProcessStartInfo(fsharpLintExecutablePath)
-        processStart.Arguments <- "--help"
+        processStart.Arguments <- "--version"
         processStart.RedirectStandardOutput <- true
         processStart.CreateNoWindow <- true
         processStart.RedirectStandardOutput <- true
@@ -159,9 +158,9 @@ let private fsharpLintVersionOnPath () : (FSharpLintExecutableFile * FSharpLintV
             stdOut
             |> Option.ofObj
             |> Option.bind (fun s ->
-                let hasDaemon = s.ToLowerInvariant().Contains("daemon mode")
-                if hasDaemon then
-                    Some (FSharpLintExecutableFile(fsharpLintExecutablePath), FSharpLintVersion("1.0.0"))
+                if p.ExitCode = 0 then
+                    let version = s.ToLowerInvariant().Replace("fsharplint", String.Empty).Trim()
+                    Some (FSharpLintExecutableFile(fsharpLintExecutablePath), FSharpLintVersion(version))
                 else 
                     None)
         | Error(ProcessStartError.ExecutableFileNotFound _)
@@ -171,32 +170,24 @@ let findFSharpLintTool (workingDir: Folder) : Result<FSharpLintToolFound, FSharp
     // First try and find a local tool for the folder.
     // Next see if there is a global tool.
     // Lastly check if an executable is present on the PATH.
-    
-    //TODO: revert
-    let onPathVersion = fsharpLintVersionOnPath ()
+    let localToolsListResult = runToolListCmd workingDir false
 
-    match onPathVersion with
-    | Some(executableFile, FSharpLintVersion(CompatibleVersion version)) ->
-        Ok(FSharpLintToolFound((FSharpLintVersion(version)), FSharpLintToolStartInfo.ToolOnPath executableFile))
-    | _ -> 
-        let localToolsListResult = runToolListCmd workingDir false
+    match localToolsListResult with
+    | Ok(CompatibleTool version) -> Ok(FSharpLintToolFound(version, FSharpLintToolStartInfo.LocalTool workingDir))
+    | Error err -> Error(FSharpLintToolError.DotNetListError err)
+    | Ok _localToolListResult ->
+        let globalToolsListResult = runToolListCmd workingDir true
 
-        match localToolsListResult with
-        | Ok(CompatibleTool version) -> Ok(FSharpLintToolFound(version, FSharpLintToolStartInfo.LocalTool workingDir))
+        match globalToolsListResult with
+        | Ok(CompatibleTool version) -> Ok(FSharpLintToolFound(version, FSharpLintToolStartInfo.GlobalTool))
         | Error err -> Error(FSharpLintToolError.DotNetListError err)
-        | Ok _localToolListResult ->
-            let globalToolsListResult = runToolListCmd workingDir true
+        | Ok _nonCompatibleGlobalVersion ->
+            let onPathVersion = fsharpLintVersionOnPath ()
 
-            match globalToolsListResult with
-            | Ok(CompatibleTool version) -> Ok(FSharpLintToolFound(version, FSharpLintToolStartInfo.GlobalTool))
-            | Error err -> Error(FSharpLintToolError.DotNetListError err)
-            | Ok _nonCompatibleGlobalVersion ->
-                let onPathVersion = fsharpLintVersionOnPath ()
-
-                match onPathVersion with
-                | Some(executableFile, FSharpLintVersion(CompatibleVersion version)) ->
-                    Ok(FSharpLintToolFound((FSharpLintVersion(version)), FSharpLintToolStartInfo.ToolOnPath executableFile))
-                | _ -> Error FSharpLintToolError.NoCompatibleVersionFound
+            match onPathVersion with
+            | Some(executableFile, FSharpLintVersion(CompatibleVersion version)) ->
+                Ok(FSharpLintToolFound((FSharpLintVersion(version)), FSharpLintToolStartInfo.ToolOnPath executableFile))
+            | _ -> Error FSharpLintToolError.NoCompatibleVersionFound
 
 let createFor (startInfo: FSharpLintToolStartInfo) : Result<RunningFSharpLintTool, ProcessStartError> =
     let processStart =
@@ -204,7 +195,7 @@ let createFor (startInfo: FSharpLintToolStartInfo) : Result<RunningFSharpLintToo
         | FSharpLintToolStartInfo.LocalTool(Folder workingDirectory) ->
             let ps = ProcessStartInfo("dotnet")
             ps.WorkingDirectory <- workingDirectory
-            ps.Arguments <- $"{fsharpLintToolName} daemon"
+            ps.Arguments <- $"{fsharpLintToolName} --daemon"
             ps
         | FSharpLintToolStartInfo.GlobalTool ->
             let userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
@@ -214,11 +205,11 @@ let createFor (startInfo: FSharpLintToolStartInfo) : Result<RunningFSharpLintToo
                 Path.Combine(userProfile, ".dotnet", "tools", fileName)
 
             let ps = ProcessStartInfo(fsharpLintExecutable)
-            ps.Arguments <- "daemon"
+            ps.Arguments <- "--daemon"
             ps
         | FSharpLintToolStartInfo.ToolOnPath(FSharpLintExecutableFile executableFile) ->
             let ps = ProcessStartInfo(executableFile)
-            ps.Arguments <- "daemon"
+            ps.Arguments <- "--daemon"
             ps
 
     processStart.UseShellExecute <- false

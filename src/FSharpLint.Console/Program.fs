@@ -24,9 +24,9 @@ type private FileType =
 // fsharplint:disable UnionCasesNames
 type private ToolArgs =
     | [<AltCommandLine("-f")>] Format of OutputFormat
-    | [<CliPrefix(CliPrefix.None)>] Daemon of ParseResults<DaemonArgs>
     | [<CliPrefix(CliPrefix.None)>] Lint of ParseResults<LintArgs>
     | Version 
+    | Daemon
 with
     interface IArgParserTemplate with
         member this.Usage =
@@ -34,15 +34,7 @@ with
             | Format _ -> "Output format of the linter."
             | Lint _ -> "Runs FSharpLint against a file or a collection of files."
             | Version -> "Prints current version."
-            | Daemon _ -> "Daemon mode, launches an LSP-like server to can be used by editor tooling."
-
-and private DaemonArgs =
-    | Yup of pwet:string
-    with
-        interface IArgParserTemplate with
-            member this.Usage = 
-                match this with
-                | Yup _ -> "Yup"
+            | Daemon -> "Daemon mode, launches an LSP-like server to can be used by editor tooling."
 
 // TODO: investigate erroneous warning on this type definition
 // fsharplint:disable UnionDefinitionIndentation
@@ -105,58 +97,57 @@ let private start (arguments:ParseResults<ToolArgs>) (toolsPath:Ionide.ProjInfo.
         output.WriteError str
         exitCode <- -1
 
-    match arguments.GetSubCommand() with
-    | Lint lintArgs ->
-
-        let handleLintResult = function
-            | LintResult.Success(warnings) ->
-                String.Format(Resources.GetString("ConsoleFinished"), List.length warnings)
-                |> output.WriteInfo
-                if not (List.isEmpty warnings) then exitCode <- -1
-            | LintResult.Failure(failure) ->
-                handleError failure.Description
-
-        let lintConfig = lintArgs.TryGetResult Lint_Config
-
-        let configParam =
-            match lintConfig with
-            | Some configPath -> FromFile configPath
-            | None -> Default
-
-
-        let lintParams =
-            { CancellationToken = None
-              ReceivedWarning = Some output.WriteWarning
-              Configuration = configParam
-              ReportLinterProgress = Some (parserProgress output) }
-
-        let target = lintArgs.GetResult Target
-        let fileType = lintArgs.TryGetResult File_Type |> Option.defaultValue (inferFileType target)
-
-        try
-            let lintResult =
-                match fileType with
-                | FileType.File -> Lint.lintFile lintParams target
-                | FileType.Source -> Lint.lintSource lintParams target
-                | FileType.Solution -> Lint.lintSolution lintParams target toolsPath
-                | FileType.Project
-                | _ -> Lint.lintProject lintParams target toolsPath
-            handleLintResult lintResult
-        with
-        | e ->
-            let target = if fileType = FileType.Source then "source" else target
-            sprintf "Lint failed while analysing %s.\nFailed with: %s\nStack trace: %s" target e.Message e.StackTrace
-            |> handleError
-    | Daemon _ ->
-        // output.WriteInfo "Starting daemon..."
-        let daemon =
-            new FSharpLintDaemon(Console.OpenStandardOutput(), Console.OpenStandardInput())
-
+    let daemon = arguments.TryGetResult <@ Daemon @>
+    if Option.isSome daemon then
+        let daemon = new FSharpLintDaemon(Console.OpenStandardOutput(), Console.OpenStandardInput())
         AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> (daemon :> IDisposable).Dispose())
 
         daemon.WaitForClose.GetAwaiter().GetResult()
-        exit 0
-    | _ -> ()
+    else
+        match arguments.GetSubCommand() with
+        | Lint lintArgs ->
+
+            let handleLintResult = function
+                | LintResult.Success(warnings) ->
+                    String.Format(Resources.GetString("ConsoleFinished"), List.length warnings)
+                    |> output.WriteInfo
+                    if not (List.isEmpty warnings) then exitCode <- -1
+                | LintResult.Failure(failure) ->
+                    handleError failure.Description
+
+            let lintConfig = lintArgs.TryGetResult Lint_Config
+
+            let configParam =
+                match lintConfig with
+                | Some configPath -> FromFile configPath
+                | None -> Default
+
+            let lintParams =
+                { 
+                    CancellationToken = None
+                    ReceivedWarning = Some output.WriteWarning
+                    Configuration = configParam
+                    ReportLinterProgress = Some (parserProgress output) 
+                }
+
+            let target = lintArgs.GetResult Target
+            let fileType = lintArgs.TryGetResult File_Type |> Option.defaultValue (inferFileType target)
+
+            try
+                let lintResult =
+                    match fileType with
+                    | FileType.File -> Lint.lintFile lintParams target
+                    | FileType.Source -> Lint.lintSource lintParams target
+                    | FileType.Solution -> Lint.lintSolution lintParams target toolsPath
+                    | FileType.Project
+                    | _ -> Lint.lintProject lintParams target toolsPath
+                handleLintResult lintResult
+            with
+            | e ->
+                let target = if fileType = FileType.Source then "source" else target
+                sprintf "Lint failed while analysing %s.\nFailed with: %s\nStack trace: %s" target e.Message e.StackTrace
+                |> handleError
+        | _ -> ()
 
     exitCode
     

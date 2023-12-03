@@ -8,8 +8,6 @@ open StreamJsonRpc
 open FSharpLint.Client.Contracts
 open FSharpLint.Client.LSPFSharpLintServiceTypes
 open FSharpLint.Client.FSharpLintToolLocator
-open System.Threading
-open FSharpLint.Application
 
 type ServiceState =
     { Daemons: Map<FSharpLintVersion, RunningFSharpLintTool>
@@ -166,16 +164,14 @@ let private getDaemon (agent: MailboxProcessor<Msg>) (folder: Folder) : Result<J
 let private fileNotFoundResponse filePath : Task<FSharpLintResponse> =
     { Code = int FSharpLintResponseCode.FileNotFound
       FilePath = filePath
-      Content = Some $"File \"%s{filePath}\" does not exist."
-      Result = []
+      Result = Content $"File \"%s{filePath}\" does not exist."
     }
     |> Task.FromResult
 
 let private fileNotAbsoluteResponse filePath : Task<FSharpLintResponse> =
     { Code = int FSharpLintResponseCode.FilePathIsNotAbsolute
       FilePath = filePath
-      Content = Some $"\"%s{filePath}\" is not an absolute file path. Relative paths are not supported."
-      Result = []
+      Result = Content $"\"%s{filePath}\" is not an absolute file path. Relative paths are not supported."
     }
     |> Task.FromResult
 
@@ -215,16 +211,14 @@ let private daemonNotFoundResponse filePath (error: GetDaemonError) : Task<FShar
 
     { Code = int code
       FilePath = filePath
-      Content = Some content
-      Result = []
+      Result = Content content
     }
     |> Task.FromResult
 
 let private cancellationWasRequestedResponse filePath : Task<FSharpLintResponse> =
     { Code = int FSharpLintResponseCode.CancellationWasRequested
       FilePath = filePath
-      Content = Some "FSharpLintService is being or has been disposed."
-      Result = []
+      Result = Content "FSharpLintService is being or has been disposed."
     }
     |> Task.FromResult
 
@@ -258,9 +252,8 @@ type LSPFSharpLintService() =
                     )
                     .ContinueWith(fun (t: Task<string>) ->
                         { Code = int FSharpLintResponseCode.Version
-                          Content = Some t.Result
-                          FilePath = filePath
-                          Result = [] })) //TODO: WIP
+                          Result = Content t.Result
+                          FilePath = filePath }))
             |> mapResultToResponse filePath
 
         member _.LintFileAsync(lintFileRequest: LintFileRequest, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
@@ -269,14 +262,13 @@ type LSPFSharpLintService() =
             |> Result.bind (getDaemon agent)
             |> Result.map (fun client ->
                 client
-                    .InvokeWithCancellationAsync<LintWarningC list>(
+                    .InvokeWithCancellationAsync<LspLintWarning list>(
                         Methods.LintFile,
                         arguments = [| lintFileRequest |],
                         cancellationToken = Option.defaultValue cts.Token cancellationToken
                     )
-                    .ContinueWith(fun (t: Task<LintWarningC list>) ->
+                    .ContinueWith(fun (t: Task<LspLintWarning list>) ->
                         { Code = int FSharpLintResponseCode.Linted
-                          Content = None //TODO: WIP
                           FilePath = lintFileRequest.FilePath
-                          Result = t.Result })) //TODO: WIP
+                          Result = LintResult t.Result }))
             |> mapResultToResponse lintFileRequest.FilePath

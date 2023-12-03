@@ -1,12 +1,7 @@
 module FSharpLint.Client.Contracts
 
-open System.Collections.Generic
 open System.Threading
 open System.Threading.Tasks
-open FSharpLint.Application
-open FSharpLint.Core
-open FSharp.Compiler.Text
-open FSharpLint.Framework.Suggestion
 
 module Methods =
 
@@ -18,46 +13,45 @@ module Methods =
 
 type LintFileRequest =
     {
-        // OptionalLintParameters: OptionalLintParameters
         FilePath: string
-        ParsedFileInfo: ParsedFileInformation option
+        LintConfigPath: string option
     }
 
-type SelectionRange =
+type LspRange =
     class
-        new: startLine: int * startColumn: int * endLine: int * endColumn: int -> SelectionRange
+        new: startLine: int * startColumn: int * endLine: int * endColumn: int -> LspRange
         val StartLine: int
         val StartColumn: int
         val EndLine: int
         val EndColumn: int
     end
 
-type SuggestedFixC = {
+type LspSuggestedFix = {
     /// Text to be replaced.
     FromText:string
 
     /// Location of the text to be replaced.
-    FromRange:SelectionRange
+    FromRange:LspRange
 
     /// Text to replace the `FromText`, i.e. the fix.
     ToText:string
 }
 
 [<NoEquality; NoComparison>]
-type WarningDetailsC = {
+type LspWarningDetails = {
     /// Location of the code that prompted the suggestion.
-    Range:SelectionRange
+    Range:LspRange
 
     /// Suggestion message to describe the possible problem to the user.
     Message:string
 
     /// Information to provide an automated fix.
-    SuggestedFix:SuggestedFixC option
+    SuggestedFix:LspSuggestedFix option
 }
 
 /// A lint "warning", sources the location of the warning with a suggestion on how it may be fixed.
 [<NoEquality; NoComparison>]
-type LintWarningC = {
+type LspLintWarning = {
     /// Unique identifier for the rule that caused the warning.
     RuleIdentifier:string
 
@@ -71,16 +65,18 @@ type LintWarningC = {
     ErrorText:string
 
     /// Details for the warning.
-    Details:WarningDetailsC
+    Details:LspWarningDetails
 }
 
-type FSharpLintResponse =
-    {
-        Code: int
-        FilePath: string
-        Content: string option
-        Result: LintWarningC list
-    }
+type FSharpLintResult =
+    | Content of string
+    | LintResult of LspLintWarning list 
+
+type FSharpLintResponse = { 
+    Code: int
+    FilePath: string
+    Result : FSharpLintResult
+}
 
 type FSharpLintService =
     inherit System.IDisposable

@@ -12,10 +12,9 @@ type FSharpLintResponseCode =
     | Version = 4
     | ToolNotFound = 5
     | FileNotFound = 6
-    | Configuration = 7
-    | FilePathIsNotAbsolute = 8
-    | CancellationWasRequested = 9
-    | DaemonCreationFailed = 10
+    | FilePathIsNotAbsolute = 7
+    | CancellationWasRequested = 8
+    | DaemonCreationFailed = 9
 
 // [<RequireQualifiedAccess>]
 // type FormatSelectionResponse =

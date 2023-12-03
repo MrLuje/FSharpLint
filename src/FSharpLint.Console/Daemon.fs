@@ -3,15 +3,34 @@
 open System
 open System.Diagnostics
 open System.IO
-open System.IO.Abstractions
 open System.Threading
-open System.Threading.Tasks
 open StreamJsonRpc
 open FSharpLint.Client.Contracts
-open FSharpLint.Core.Version
 open FSharp.Core
 open FSharpLint.Application
 open Newtonsoft.Json
+
+[<RequireQualifiedAccess>]
+module private Lsp =
+    let fromLintWarning (lintWarning: FSharpLint.Framework.Suggestion.LintWarning): LspLintWarning =
+        {
+            ErrorText = lintWarning.ErrorText
+            FilePath = lintWarning.FilePath
+            RuleIdentifier = lintWarning.RuleIdentifier
+            RuleName = lintWarning.RuleName
+            Details = {
+                Range = LspRange(lintWarning.Details.Range.StartLine, lintWarning.Details.Range.StartColumn, lintWarning.Details.Range.EndLine, lintWarning.Details.Range.EndColumn)
+                Message = lintWarning.Details.Message
+                SuggestedFix = 
+                    lintWarning.Details.SuggestedFix
+                    |> Option.bind(fun fix -> fix.Value)
+                    |> Option.map(fun fix -> {
+                        FromRange = LspRange(fix.FromRange.StartLine, fix.FromRange.StartColumn, fix.FromRange.EndLine, fix.FromRange.EndColumn)
+                        FromText = fix.FromText
+                        ToText = fix.ToText
+                    })
+            }
+        }
 
 type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
     let rpc: JsonRpc = JsonRpc.Attach(sender, reader, this)
@@ -26,8 +45,6 @@ type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
 
     let exit () = disconnectEvent.Set() |> ignore
 
-    let fs = FileSystem()
-
     do rpc.Disconnected.Add(fun _ -> exit ())
 
     interface IDisposable with
@@ -39,33 +56,24 @@ type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
     member this.WaitForClose = rpc.Completion
 
     [<JsonRpcMethod(Methods.Version)>]
-    member _.Version() : string = fsharpLintVersion
+    member _.Version() : string = FSharpLint.Core.Version.fsharpLintVersion
 
     [<JsonRpcMethod(Methods.LintFile)>]
-    member _.LintFile(request: LintFileRequest) : LintWarningC list = 
-        let r = Lint.lintFile (Lint.OptionalLintParameters.Default) (request.FilePath)
-        match r with
+    member _.LintFile(request: LintFileRequest) : LspLintWarning list = 
+        let lintConfig = 
+            match request.LintConfigPath with
+            | Some path -> 
+                { CancellationToken = None
+                  ReceivedWarning = None
+                  Configuration = FromFile path
+                  ReportLinterProgress = None }
+            | None -> Lint.OptionalLintParameters.Default
+
+        let lintResult = Lint.lintFile lintConfig (request.FilePath)
+        match lintResult with
         | LintResult.Success warnings ->
-            let result = 
-                warnings
-                |> List.map(fun w -> {
-                    ErrorText = w.ErrorText
-                    FilePath = w.FilePath
-                    RuleIdentifier = w.RuleIdentifier
-                    RuleName = w.RuleName
-                    Details = {
-                        Range = SelectionRange(w.Details.Range.StartLine, w.Details.Range.StartColumn, w.Details.Range.EndLine, w.Details.Range.EndColumn)
-                        Message = w.Details.Message
-                        SuggestedFix = 
-                            w.Details.SuggestedFix
-                            |> Option.bind(fun fix -> fix.Value)
-                            |> Option.map(fun fix -> {
-                                FromRange = SelectionRange(fix.FromRange.StartLine, fix.FromRange.StartColumn, fix.FromRange.EndLine, fix.FromRange.EndColumn)
-                                FromText = fix.FromText
-                                ToText = fix.ToText
-                            })
-                    }
-                })
+            let result = warnings |> List.map Lsp.fromLintWarning
             Debug.Assert (JsonConvert.SerializeObject result <> "")
+
             result
         | LintResult.Failure _ -> []

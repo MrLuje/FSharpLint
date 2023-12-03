@@ -12,6 +12,8 @@ open FSharpLint.Application.Lint
 open Newtonsoft.Json
 open Newtonsoft.Json
 open System
+open System.Diagnostics
+open System
 
 let testFile = "/home/vince/src/github/mrluje/FSharpLint/src/FSharpLint.ClientTest/Program.fs"
 
@@ -29,9 +31,15 @@ let generateAst source =
 
 let fsharpLintService: FSharpLintService = new LSPFSharpLintService() :> FSharpLintService
 async {
+    if Environment.GetCommandLineArgs() |> Array.contains "--debug" then
+        Console.WriteLine("Waiting for debugger...")
+        while not Debugger.IsAttached do
+            Thread.Sleep ((TimeSpan.FromSeconds 1).Milliseconds)
+        Console.WriteLine("Attached !!")
+
     let! version = fsharpLintService.VersionAsync(testFile, CancellationToken.None) |> Async.AwaitTask
     // let version = {| Code = 5 |}
-    // Debug.Assert(version.Code = 5)
+    Debug.Assert(version.Code = (int)FSharpLint.Client.LSPFSharpLintServiceTypes.FSharpLintResponseCode.Version)
 
     let warns = FSharpLint.Application.Lint.lintFile OptionalLintParameters.Default testFile
     
@@ -64,20 +72,21 @@ async {
     // let str = JsonConvert.SerializeObject(warns, jsonFormatter)
     // let s = JsonSerializer.Serialize warns
     
-    let fileContent = File.ReadAllText testFile
-
-    Console.WriteLine("Waiting for input...")
-    Console.Read() |> ignore
+    // let fileContent = File.ReadAllText testFile
 
     let r = (fsharpLintService.LintFileAsync({
         FilePath = testFile
-        ParsedFileInfo = None
+        LintConfigPath = None
+        // ParsedFileInfo = None
         // ParsedFileInfo = {
         //     Ast = generateAst fileContent
         //     Source = fileContent
         //     TypeCheckResults = None
         // }
     }).Result)
+    Debug.Assert(r.Code = (int)FSharpLint.Client.LSPFSharpLintServiceTypes.FSharpLintResponseCode.Linted)
+    printfn $"LintResults for %s{testFile}: %A{r.Result}"
+
     return version
 }
 |> Async.RunSynchronously
