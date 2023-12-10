@@ -93,61 +93,61 @@ let private start (arguments:ParseResults<ToolArgs>) (toolsPath:Ionide.ProjInfo.
         sprintf "Current version: %s" version |> output.WriteInfo
         ()
 
-    let handleError (str:string) =
-        output.WriteError str
-        exitCode <- -1
-
-    let daemon = arguments.TryGetResult <@ Daemon @>
-    if Option.isSome daemon then
+    if arguments.Contains ToolArgs.Daemon then
         let daemon = new FSharpLintDaemon(Console.OpenStandardOutput(), Console.OpenStandardInput())
         AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> (daemon :> IDisposable).Dispose())
 
         daemon.WaitForClose.GetAwaiter().GetResult()
-    else
-        match arguments.GetSubCommand() with
-        | Lint lintArgs ->
 
-            let handleLintResult = function
-                | LintResult.Success(warnings) ->
-                    String.Format(Resources.GetString("ConsoleFinished"), List.length warnings)
-                    |> output.WriteInfo
-                    if not (List.isEmpty warnings) then exitCode <- -1
-                | LintResult.Failure(failure) ->
-                    handleError failure.Description
 
-            let lintConfig = lintArgs.TryGetResult Lint_Config
+    let handleError (str:string) =
+        output.WriteError str
+        exitCode <- -1
 
-            let configParam =
-                match lintConfig with
-                | Some configPath -> FromFile configPath
-                | None -> Default
+    match arguments.GetSubCommand() with
+    | Lint lintArgs ->
 
-            let lintParams =
-                { 
-                    CancellationToken = None
-                    ReceivedWarning = Some output.WriteWarning
-                    Configuration = configParam
-                    ReportLinterProgress = Some (parserProgress output) 
-                }
+        let handleLintResult = function
+            | LintResult.Success(warnings) ->
+                String.Format(Resources.GetString("ConsoleFinished"), List.length warnings)
+                |> output.WriteInfo
+                if not (List.isEmpty warnings) then exitCode <- -1
+            | LintResult.Failure(failure) ->
+                handleError failure.Description
 
-            let target = lintArgs.GetResult Target
-            let fileType = lintArgs.TryGetResult File_Type |> Option.defaultValue (inferFileType target)
+        let lintConfig = lintArgs.TryGetResult Lint_Config
 
-            try
-                let lintResult =
-                    match fileType with
-                    | FileType.File -> Lint.lintFile lintParams target
-                    | FileType.Source -> Lint.lintSource lintParams target
-                    | FileType.Solution -> Lint.lintSolution lintParams target toolsPath
-                    | FileType.Project
-                    | _ -> Lint.lintProject lintParams target toolsPath
-                handleLintResult lintResult
-            with
-            | e ->
-                let target = if fileType = FileType.Source then "source" else target
-                sprintf "Lint failed while analysing %s.\nFailed with: %s\nStack trace: %s" target e.Message e.StackTrace
-                |> handleError
-        | _ -> ()
+        let configParam =
+            match lintConfig with
+            | Some configPath -> FromFile configPath
+            | None -> Default
+
+        let lintParams =
+            { 
+                CancellationToken = None
+                ReceivedWarning = Some output.WriteWarning
+                Configuration = configParam
+                ReportLinterProgress = Some (parserProgress output) 
+            }
+
+        let target = lintArgs.GetResult Target
+        let fileType = lintArgs.TryGetResult File_Type |> Option.defaultValue (inferFileType target)
+
+        try
+            let lintResult =
+                match fileType with
+                | FileType.File -> Lint.lintFile lintParams target
+                | FileType.Source -> Lint.lintSource lintParams target
+                | FileType.Solution -> Lint.lintSolution lintParams target toolsPath
+                | FileType.Project
+                | _ -> Lint.lintProject lintParams target toolsPath
+            handleLintResult lintResult
+        with
+        | e ->
+            let target = if fileType = FileType.Source then "source" else target
+            sprintf "Lint failed while analysing %s.\nFailed with: %s\nStack trace: %s" target e.Message e.StackTrace
+            |> handleError
+    | _ -> ()
 
     exitCode
     
