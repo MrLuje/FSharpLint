@@ -158,8 +158,8 @@ let private fsharpLintVersionOnPath () : (FSharpLintExecutableFile * FSharpLintV
             stdOut
             |> Option.ofObj
             |> Option.bind (fun s ->
-                if p.ExitCode = 0 then
-                    let version = s.ToLowerInvariant().Replace("fsharplint", String.Empty).Trim()
+                if s.Contains("Current version: ", StringComparison.CurrentCultureIgnoreCase) then
+                    let version = s.ToLowerInvariant().Replace("current version: ", String.Empty).Trim()
                     Some (FSharpLintExecutableFile(fsharpLintExecutablePath), FSharpLintVersion(version))
                 else 
                     None)
