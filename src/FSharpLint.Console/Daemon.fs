@@ -12,20 +12,20 @@ open Newtonsoft.Json
 
 [<RequireQualifiedAccess>]
 module private Lsp =
-    let fromLintWarning (lintWarning: FSharpLint.Framework.Suggestion.LintWarning): LspLintWarning =
+    let fromLintWarning (lintWarning: FSharpLint.Framework.Suggestion.LintWarning): ClientLintWarning =
         {
             ErrorText = lintWarning.ErrorText
             FilePath = lintWarning.FilePath
             RuleIdentifier = lintWarning.RuleIdentifier
             RuleName = lintWarning.RuleName
             Details = {
-                Range = LspRange(lintWarning.Details.Range.StartLine, lintWarning.Details.Range.StartColumn, lintWarning.Details.Range.EndLine, lintWarning.Details.Range.EndColumn)
+                Range = ClientRange(lintWarning.Details.Range.StartLine, lintWarning.Details.Range.StartColumn, lintWarning.Details.Range.EndLine, lintWarning.Details.Range.EndColumn)
                 Message = lintWarning.Details.Message
                 SuggestedFix = 
                     lintWarning.Details.SuggestedFix
                     |> Option.bind(fun fix -> fix.Value)
                     |> Option.map(fun fix -> {
-                        FromRange = LspRange(fix.FromRange.StartLine, fix.FromRange.StartColumn, fix.FromRange.EndLine, fix.FromRange.EndColumn)
+                        FromRange = ClientRange(fix.FromRange.StartLine, fix.FromRange.StartColumn, fix.FromRange.EndLine, fix.FromRange.EndColumn)
                         FromText = fix.FromText
                         ToText = fix.ToText
                     })
@@ -59,7 +59,7 @@ type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
     member _.Version() : string = FSharpLint.Console.Version.get ()
 
     [<JsonRpcMethod(Methods.LintFile)>]
-    member _.LintFile(request: LintFileRequest) : LspLintWarning list = 
+    member _.LintFile(request: LintFileRequest) : ClientLintWarning list = 
         let lintConfig = 
             match request.LintConfigPath with
             | Some path -> 

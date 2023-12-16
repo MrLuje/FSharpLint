@@ -27,7 +27,7 @@ type LintFileRequest =
         LintConfigPath: string option
     }
 
-type LspRange =
+type ClientRange =
     class
         val StartLine: int
         val StartColumn: int
@@ -40,32 +40,32 @@ type LspRange =
               EndColumn = endColumn }
     end
 
-type LspSuggestedFix = {
+type ClientSuggestedFix = {
     /// Text to be replaced.
     FromText:string
 
     /// Location of the text to be replaced.
-    FromRange:LspRange
+    FromRange:ClientRange
 
     /// Text to replace the `FromText`, i.e. the fix.
     ToText:string
 }
 
 [<NoEquality; NoComparison>]
-type LspWarningDetails = {
+type ClientWarningDetails = {
     /// Location of the code that prompted the suggestion.
-    Range:LspRange
+    Range:ClientRange
 
     /// Suggestion message to describe the possible problem to the user.
     Message:string
 
     /// Information to provide an automated fix.
-    SuggestedFix:LspSuggestedFix option
+    SuggestedFix:ClientSuggestedFix option
 }
 
 /// A lint "warning", sources the location of the warning with a suggestion on how it may be fixed.
 [<NoEquality; NoComparison>]
-type LspLintWarning = {
+type ClientLintWarning = {
     /// Unique identifier for the rule that caused the warning.
     RuleIdentifier:string
 
@@ -79,12 +79,12 @@ type LspLintWarning = {
     ErrorText:string
 
     /// Details for the warning.
-    Details:LspWarningDetails
+    Details:ClientWarningDetails
 }
 
 type FSharpLintResult =
     | Content of string
-    | LintResult of LspLintWarning list 
+    | LintResult of ClientLintWarning list 
 
 type FSharpLintResponse = { 
     Code: int
