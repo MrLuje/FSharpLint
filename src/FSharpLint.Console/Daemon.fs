@@ -56,7 +56,7 @@ type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
     member this.WaitForClose = rpc.Completion
 
     [<JsonRpcMethod(Methods.Version)>]
-    member _.Version() : string = FSharpLint.Core.Version.fsharpLintVersion
+    member _.Version() : string = FSharpLint.Console.Version.get ()
 
     [<JsonRpcMethod(Methods.LintFile)>]
     member _.LintFile(request: LintFileRequest) : LspLintWarning list = 
