@@ -8,7 +8,6 @@ open System.Text.RegularExpressions
 open System.Runtime.InteropServices
 open StreamJsonRpc
 open FSharpLint.Client.LSPFSharpLintServiceTypes
-open Newtonsoft.Json
 
 let private supportedRange = SemanticVersioning.Range(">=v0.21.3") //TODO: proper version
 
@@ -220,16 +219,10 @@ let createFor (startInfo: FSharpLintToolStartInfo) : Result<RunningFSharpLintToo
 
     match startProcess processStart with
     | Ok daemonProcess ->
-        let jsonFormatter = new JsonMessageFormatter()
-        jsonFormatter.JsonSerializer.ReferenceLoopHandling <- ReferenceLoopHandling.Ignore
-        jsonFormatter.JsonSerializer.PreserveReferencesHandling <- PreserveReferencesHandling.Objects
-
         let handler = new HeaderDelimitedMessageHandler(
-            daemonProcess.StandardInput.BaseStream, 
-            daemonProcess.StandardOutput.BaseStream, 
-            jsonFormatter)
-        let client =
-            new JsonRpc(handler)
+            daemonProcess.StandardInput.BaseStream,
+            daemonProcess.StandardOutput.BaseStream)
+        let client = new JsonRpc(handler)
 
         do client.StartListening()
 
