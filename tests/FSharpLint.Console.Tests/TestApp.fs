@@ -104,7 +104,7 @@ type TestConsoleApplication() =
     member __.``Get version from Daemon mode``() =
         let path = Environment.GetEnvironmentVariable("PATH")
         // ensure current FSharpLint.Console output is in PATH
-        Environment.SetEnvironmentVariable("PATH", Path.GetFullPath $"../../../../../src/FSharpLint.Console/bin/Debug/net6.0:{path}")
+        Environment.SetEnvironmentVariable("PATH", Path.GetFullPath $"../../../../../src/FSharpLint.Console/bin/Release/net6.0:{path}")
 
         use input = new TemporaryFile(String.Empty, "fs")
         let fsharpLintService: FSharpLintService = new LSPFSharpLintService() :> FSharpLintService

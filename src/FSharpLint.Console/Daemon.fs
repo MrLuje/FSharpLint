@@ -59,7 +59,7 @@ type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
     member _.Version() : string = FSharpLint.Console.Version.get ()
 
     [<JsonRpcMethod(Methods.LintFile)>]
-    member _.LintFile(request: LintFileRequest) : ClientLintWarning list = 
+    member _.LintFile(request: LintFileRequest) : Result<ClientLintWarning list, string> =
         let lintConfig = 
             match request.LintConfigPath with
             | Some path -> 
@@ -75,5 +75,5 @@ type FSharpLintDaemon(sender: Stream, reader: Stream) as this =
             let result = warnings |> List.map Lsp.fromLintWarning
             Debug.Assert (JsonConvert.SerializeObject result <> "")
 
-            result
-        | LintResult.Failure _ -> []
+            Ok result
+        | LintResult.Failure failure -> Error failure.Description
