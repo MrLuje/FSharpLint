@@ -113,7 +113,6 @@ type TestConsoleApplication() =
                 let request = 
                     {
                         FilePath = input.FileName
-                        ProjectPath = None
                     }
                 let! version = fsharpLintService.VersionAsync(request, CancellationToken.None) |> Async.AwaitTask
                 return version

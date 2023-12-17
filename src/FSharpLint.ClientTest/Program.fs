@@ -7,6 +7,7 @@ open FSharp.Compiler.Text
 open FSharpLint.Framework
 open System
 open System.IO
+open System.Threading
 
 let testFile = "/home/vince/src/github/mrluje/FSharpLint/src/FSharpLint.ClientTest/Program.fs"
 
@@ -26,7 +27,8 @@ let fsharpLintService: FSharpLintService = new LSPFSharpLintService() :> FSharpL
 async {
     let path = Environment.GetEnvironmentVariable("PATH")
     // ensure current FSharpLint.Console output is in PATH
-    Environment.SetEnvironmentVariable("PATH", Path.GetFullPath $"../../../../../src/FSharpLint.Console/bin/Release/net6.0:{path}")
+    // Environment.SetEnvironmentVariable("PATH", Path.GetFullPath $"../../../../../src/FSharpLint.Console/bin/Release/net6.0:{path}")
+    Environment.SetEnvironmentVariable("PATH", Path.GetFullPath $"/home/vince/src/github/mrluje/FSharpLint/src/FSharpLint.Console/bin/Release/net6.0:{path}")
     
     if Environment.GetCommandLineArgs() |> Array.contains "--debug" then
         Console.WriteLine("Waiting for debugger...")
@@ -34,16 +36,19 @@ async {
             Thread.Sleep ((TimeSpan.FromSeconds 1).Milliseconds)
         Console.WriteLine("Attached !!")
 
-    let! version = fsharpLintService.VersionAsync({ FilePath = testFile; ProjectPath = None }, CancellationToken.None) |> Async.AwaitTask
+    let! version = fsharpLintService.VersionAsync({ FilePath = testFile }, CancellationToken.None) |> Async.AwaitTask
     Debug.Assert(version.Code = (int)FSharpLint.Client.LSPFSharpLintServiceTypes.FSharpLintResponseCode.Version)
 
     // let warns = FSharpLint.Application.Lint.lintFile OptionalLintParameters.Default testFile
+    let ct = new CancellationTokenSource()
+    // ct.CancelAfter(5)
     
-    let r = (fsharpLintService.LintFileAsync({
-        FilePath = testFile
-        ProjectPath = None
-        LintConfigPath = None
-    }).Result)
+    let! r = 
+        fsharpLintService.LintFileAsync({
+            FilePath = testFile
+            LintConfigPath = None
+        }, ct.Token) 
+        |> Async.AwaitTask
     Debug.Assert(r.Code = (int)FSharpLint.Client.LSPFSharpLintServiceTypes.FSharpLintResponseCode.Linted)
     printfn $"LintResults for %s{testFile}: %A{r.Result}"
 

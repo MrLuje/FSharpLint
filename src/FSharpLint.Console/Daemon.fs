@@ -9,6 +9,7 @@ open FSharpLint.Client.Contracts
 open FSharp.Core
 open FSharpLint.Application
 open Newtonsoft.Json
+open System
 
 [<RequireQualifiedAccess>]
 module private Lsp =

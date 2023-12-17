@@ -3,8 +3,6 @@ module FSharpLint.Client.Contracts
 open System
 open System.Threading
 open System.Threading.Tasks
-open System
-open System
 
 [<RequireQualifiedAccess>]
 module Methods =
@@ -17,13 +15,11 @@ module Methods =
 type VersionRequest =
     {
         FilePath: string
-        ProjectPath: string option
     }
 
 type LintFileRequest =
     {
         FilePath: string
-        ProjectPath: string option
         LintConfigPath: string option
     }
 

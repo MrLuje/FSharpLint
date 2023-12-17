@@ -146,7 +146,7 @@ let private isCancellationRequested (requested: bool) : Result<unit, FSharpLintS
     else
         Ok()
 
-let private getFolderFor filePath projectPath (): Result<Folder, FSharpLintServiceError> =
+let private getFolderFor filePath (): Result<Folder, FSharpLintServiceError> =
     let handleFile filePath =
         if not (isPathAbsolute filePath) then
             Error FSharpLintServiceError.FilePathIsNotAbsolute
@@ -155,9 +155,7 @@ let private getFolderFor filePath projectPath (): Result<Folder, FSharpLintServi
         else
             Path.GetDirectoryName filePath |> Folder |> Ok
     
-    projectPath
-    |> Option.defaultValue filePath
-    |> handleFile
+    handleFile filePath
 
 let private getDaemon (agent: MailboxProcessor<Msg>) (folder: Folder) : Result<JsonRpc, FSharpLintServiceError> =
     let daemon = agent.PostAndReply(fun replyChannel -> GetDaemon(folder, replyChannel))
@@ -247,7 +245,7 @@ type LSPFSharpLintService() =
 
         member _.VersionAsync(versionRequest: VersionRequest, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
             isCancellationRequested cts.IsCancellationRequested
-            |> Result.bind (getFolderFor (versionRequest.FilePath) (versionRequest.ProjectPath))
+            |> Result.bind (getFolderFor (versionRequest.FilePath))
             |> Result.bind (getDaemon agent)
             |> Result.map (fun client ->
                 client
@@ -263,7 +261,7 @@ type LSPFSharpLintService() =
 
         member _.LintFileAsync(lintFileRequest: LintFileRequest, ?cancellationToken: CancellationToken) : Task<FSharpLintResponse> =
             isCancellationRequested cts.IsCancellationRequested
-            |> Result.bind (getFolderFor (lintFileRequest.FilePath) (lintFileRequest.ProjectPath))
+            |> Result.bind (getFolderFor (lintFileRequest.FilePath))
             |> Result.bind (getDaemon agent)
             |> Result.map (fun client ->
                 client

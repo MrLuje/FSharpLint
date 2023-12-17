@@ -14,13 +14,11 @@ module Methods =
 type VersionRequest =
     {
         FilePath: string
-        ProjectPath: string option
     }
 
 type LintFileRequest =
     {
         FilePath: string
-        ProjectPath: string option
         LintConfigPath: string option
     }
 
