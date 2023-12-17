@@ -99,24 +99,3 @@ type TestConsoleApplication() =
         
         Assert.AreEqual(0, returnCode)
         Assert.AreEqual(Set.empty, errors)
-        
-    [<Test>]
-    member __.``Get version from Daemon mode``() =
-        let path = Environment.GetEnvironmentVariable("PATH")
-        // ensure current FSharpLint.Console output is in PATH
-        Environment.SetEnvironmentVariable("PATH", Path.GetFullPath $"../../../../../src/FSharpLint.Console/bin/Release/net6.0:{path}")
-
-        use input = new TemporaryFile(String.Empty, "fs")
-        let fsharpLintService: FSharpLintService = new LSPFSharpLintService() :> FSharpLintService
-        let versionResponse = 
-            async {
-                let request = 
-                    {
-                        FilePath = input.FileName
-                    }
-                let! version = fsharpLintService.VersionAsync(request, CancellationToken.None) |> Async.AwaitTask
-                return version
-            }
-            |> Async.RunSynchronously
-        
-        Assert.AreEqual(LanguagePrimitives.EnumToValue FSharpLintResponseCode.Version, versionResponse.Code)

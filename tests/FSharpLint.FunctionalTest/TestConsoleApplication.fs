@@ -9,10 +9,21 @@ module Tests =
     open System.Diagnostics
     open System.IO
     open NUnit.Framework
+    open FSharpLint.Client.Contracts
+    open FSharpLint.Client.LSPFSharpLintService
+    open FSharpLint.Client.LSPFSharpLintServiceTypes
 
     let (</>) x y = Path.Combine(x, y)
 
     let basePath = TestContext.CurrentContext.TestDirectory </> ".." </> ".." </> ".." </> ".." </> ".."
+    let binDir =
+        #if DEBUG
+            "Debug"
+        #else
+            "Release"
+        #endif
+
+    let fsharpLintConsoleDll = basePath </> "src" </> "FSharpLint.Console" </> "bin" </> binDir </> "net6.0" </> "dotnet-fsharplint.dll"
 
     type Error =
         { Description:string
@@ -23,18 +34,10 @@ module Tests =
             sprintf "{\n    Description=\"%s\"\n    Location=\"%s\"\n    Code=\"%s\"\n}" this.Description this.Location this.Code
 
     let dotnetFslint arguments =
-        let binDir =
-            #if DEBUG
-                "Debug"
-            #else
-                "Release"
-            #endif
-
-        let dll = basePath </> "src" </> "FSharpLint.Console" </> "bin" </> binDir </> "net6.0" </> "dotnet-fsharplint.dll"
 
         let startInfo = ProcessStartInfo
                                 (FileName = "dotnet",
-                                 Arguments = dll + " " + arguments,
+                                 Arguments = fsharpLintConsoleDll + " " + arguments,
                                  RedirectStandardOutput = true,
                                  RedirectStandardError = true,
                                  UseShellExecute = false,
@@ -125,3 +128,26 @@ module Tests =
                 "Did not find the following expected errors: [" + String.concat "," expectedMissing + "]\n" +
                 "Found the following unexpected warnings: [" + String.concat "," notExpected + "]\n" +
                 "Complete output: " + output)
+
+        
+        [<Test>]
+        member __.FunctionalTestDaemonVersion() =
+            let path = Environment.GetEnvironmentVariable("PATH")
+            let fsharpConsoleOutputDir = Path.GetFullPath (Path.GetDirectoryName(fsharpLintConsoleDll))
+            // ensure current FSharpLint.Console output is in PATH
+            Environment.SetEnvironmentVariable("PATH", $"{fsharpConsoleOutputDir}:{path})")
+
+            let testHintsFile = basePath </> "tests" </> "FSharpLint.FunctionalTest.TestedProject" </> "FSharpLint.FunctionalTest.TestedProject.NetCore" </> "TestHints.fs"
+            let fsharpLintService: FSharpLintService = new LSPFSharpLintService() :> FSharpLintService
+            let versionResponse = 
+                async {
+                    let request = 
+                        {
+                            FilePath = testHintsFile
+                        }
+                    let! version = fsharpLintService.VersionAsync(request) |> Async.AwaitTask
+                    return version
+                }
+                |> Async.RunSynchronously
+            
+            Assert.AreEqual(LanguagePrimitives.EnumToValue FSharpLintResponseCode.Version, versionResponse.Code)
